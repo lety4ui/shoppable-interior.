@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoppable Interior - Интерактивный каталог</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .header {
+            padding: 20px 40px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; font-weight: 500; }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            padding: 40px;
+        }
+        .photo-card {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .photo-card:hover { transform: translateY(-4px); }
+        .photo-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .hotspot {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            background: #fff;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+        }
+        .hotspot::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(20, 20, 20, 0.98);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 280px;
+            max-width: 320px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .tooltip.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .tooltip-header { display: flex; gap: 12px; margin-bottom: 12px; }
+        .tooltip-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #333;
+        }
+        .tooltip-info { flex: 1; }
+        .tooltip-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .tooltip-category { font-size: 12px; color: #888; margin-bottom: 8px; }
+        .tooltip-price { font-size: 18px; font-weight: 700; color: #4ade80; }
+        .tooltip-shops { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .shop-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #2a2a2a;
+            border-radius: 20px;
+            font-size: 12px;
+            text-decoration: none;
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .shop-badge:hover { background: #3a3a3a; }
+        .shop-badge.yandex { background: #fc3f1d; }
+        .shop-badge.yandex:hover { background: #e03518; }
+        .shop-badge.ozon { background: #005bff; }
+        .shop-badge.ozon:hover { background: #004cd9; }
+        .photo-info { padding: 20px; }
+        .photo-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+        .photo-meta {
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .gallery { grid-template-columns: 1fr; padding: 20px; }
+            .header { padding: 15px 20px; flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏠 Shoppable Interior</h1>
+        <span style="color: #888;">Кликайте на точки, чтобы найти товары</span>
+    </div>
+    
+    <div class="gallery" id="gallery"></div>
+    
+    <script>
+        // Данные фотографий с разметкой
+        const interiorData = [
+            {
+                id: 1,
+                src: './photo1.jpg',
+                title: 'Гостиная в скандинавском стиле',
+                items: 5,
+                hotspots: [
+                    { id: 'h1', x: 35, y: 55, name: 'Диван прямой серый', category: 'Мягкая мебель', price: '45 900 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Диван', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=диван+прямой+серый', type: 'yandex' }, { name: 'Ozon', url: 'https://www.ozon.ru/search/?text=диван+прямой+серый', type: 'ozon' }] },
+                    { id: 'h2', x: 65, y: 45, name: 'Кресло с подлокотниками', category: 'Мягкая мебель', price: '23 500 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Кресло', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=кресло+с+подлокотниками', type: 'yandex' }] },
+                    { id: 'h3', x: 50, y: 70, name: 'Журнальный столик', category: 'Столы', price: '12 900 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Стол', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=журнальный+столик', type: 'yandex' }, { name: 'Ozon', url: 'https://www.ozon.ru/search/?text=журнальный+столик', type: 'ozon' }] },
+                    { id: 'h4', x: 25, y: 35, name: 'Торшер напольный', category: 'Освещение', price: '8 400 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Торшер', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=торшер+напольный', type: 'yandex' }] },
+                    { id: 'h5', x: 80, y: 75, name: 'Ковёр вязаный', category: 'Текстиль', price: '15 200 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Ковёр', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=ковер+вязаный', type: 'yandex' }] }
+                ]
+            },
+            {
+                id: 2,
+                src: './photo2.jpg',
+                title: 'Кухня-гостиная',
+                items: 4,
+                hotspots: [
+                    { id: 'h6', x: 40, y: 40, name: 'Барные стулья', category: 'Стулья', price: '5 800 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Стул', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=барный+стул', type: 'yandex' }] },
+                    { id: 'h7', x: 60, y: 35, name: 'Подвесная люстра', category: 'Освещение', price: '18 900 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Люстра', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=люстра+подвесная', type: 'yandex' }, { name: 'Ozon', url: 'https://www.ozon.ru/search/?text=люстра+подвесная', type: 'ozon' }] },
+                    { id: 'h8', x: 30, y: 60, name: 'Кухонный остров', category: 'Кухня', price: '89 000 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Остров', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=кухонный+остров', type: 'yandex' }] },
+                    { id: 'h9', x: 75, y: 55, name: 'Ваза декоративная', category: 'Декор', price: '3 200 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Ваза', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=ваза+декоративная', type: 'yandex' }] }
+                ]
+            },
+            {
+                id: 3,
+                src: './photo3.jpg',
+                title: 'Спальня',
+                items: 3,
+                hotspots: [
+                    { id: 'h10', x: 45, y: 50, name: 'Кровать с изголовьем', category: 'Кровати', price: '67 500 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Кровать', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=кровать+с+изголовьем', type: 'yandex' }] },
+                    { id: 'h11', x: 75, y: 65, name: 'Прикроватная тумба', category: 'Мебель', price: '9 800 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Тумба', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=тумба+прикроватная', type: 'yandex' }, { name: 'Ozon', url: 'https://www.ozon.ru/search/?text=тумба+прикроватная', type: 'ozon' }] },
+                    { id: 'h12', x: 20, y: 45, name: 'Настольная лампа', category: 'Освещение', price: '4 500 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Лампа', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=настольная+лампа', type: 'yandex' }] }
+                ]
+            },
+            {
+                id: 4,
+                src: './photo4.jpg',
+                title: 'Кабинет',
+                items: 3,
+                hotspots: [
+                    { id: 'h13', x: 50, y: 45, name: 'Письменный стол', category: 'Столы', price: '34 900 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Стол', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=письменный+стол', type: 'yandex' }] },
+                    { id: 'h14', x: 30, y: 60, name: 'Офисное кресло', category: 'Кресла', price: '28 500 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Кресло', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=офисное+кресло', type: 'yandex' }, { name: 'Ozon', url: 'https://www.ozon.ru/search/?text=офисное+кресло', type: 'ozon' }] },
+                    { id: 'h15', x: 70, y: 35, name: 'Книжный стеллаж', category: 'Хранение', price: '19 800 ₽', image: 'https://via.placeholder.com/80x80/4a5568/fff?text=Стеллаж', shops: [{ name: 'Яндекс.Маркет', url: 'https://market.yandex.ru/search?text=книжный+стеллаж', type: 'yandex' }] }
+                ]
+            }
+        ];
+
+        let activeTooltip = null;
+
+        function createHotspot(hotspot, container) {
+            const el = document.createElement('div');
+            el.className = 'hotspot';
+            el.style.left = hotspot.x + '%';
+            el.style.top = hotspot.y + '%';
+            el.innerHTML = '•';
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.innerHTML = `
+                <div class="tooltip-header">
+                    <img class="tooltip-img" src="${hotspot.image}" alt="" onerror="this.src='https://via.placeholder.com/80x80/333/fff?text=?'">
+                    <div class="tooltip-info">
+                        <div class="tooltip-title">${hotspot.name}</div>
+                        <div class="tooltip-category">${hotspot.category}</div>
+                        <div class="tooltip-price">${hotspot.price}</div>
+                    </div>
+                </div>
+                <div class="tooltip-shops">
+                    ${hotspot.shops.map(shop => `<a class="shop-badge ${shop.type}" href="${shop.url}" target="_blank" rel="noopener">${shop.name}</a>`).join('')}
+                </div>
+            `;
+            
+            tooltip.style.left = Math.min(hotspot.x, 70) + '%';
+            tooltip.style.top = (hotspot.y > 50 ? hotspot.y - 40 : hotspot.y + 15) + '%';
+            
+            container.appendChild(tooltip);
+            container.appendChild(el);
+            
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (activeTooltip && activeTooltip !== tooltip) {
+                    activeTooltip.classList.remove('active');
+                }
+                tooltip.classList.toggle('active');
+                activeTooltip = tooltip.classList.contains('active') ? tooltip : null;
+            });
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            
+            interiorData.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = 'photo-card';
+                
+                const container = document.createElement('div');
+                container.className = 'photo-container';
+                
+                const img = document.createElement('img');
+                img.src = photo.src;
+                img.alt = photo.title;
+                img.onerror = () => { img.src = `https://via.placeholder.com/800x600/2a2a2a/666?text=Фото+${photo.id}`; };
+                
+                container.appendChild(img);
+                photo.hotspots.forEach(h => createHotspot(h, container));
+                
+                container.addEventListener('click', (e) => {
+                    if (e.target === img || e.target === container) {
+                        if (activeTooltip) {
+                            activeTooltip.classList.remove('active');
+                            activeTooltip = null;
+                        }
+                    }
+                });
+                
+                const info = document.createElement('div');
+                info.className = 'photo-info';
+                info.innerHTML = `
+                    <div class="photo-title">${photo.title}</div>
+                    <div class="photo-meta">
+                        <span>📦 ${photo.items} товаров</span>
+                        <span>👆 Кликайте на точки</span>
+                    </div>
+                `;
+                
+                card.appendChild(container);
+                card.appendChild(info);
+                gallery.appendChild(card);
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && activeTooltip) {
+                activeTooltip.classList.remove('active');
+                activeTooltip = null;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', renderGallery);
+    </script>
+</body>
+</html>
